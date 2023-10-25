@@ -205,20 +205,184 @@ public:
         fixUpInsert(newNode);
     }
 
-    void printPreOrder(const std::shared_ptr<Node>& current) {
+    void transplant(std::shared_ptr<Node> fromNode, std::shared_ptr<Node> toNode) {
+        if (fromNode == nullptr) {
+            throw std::runtime_error("Node is nullptr"); 
+        }
+
+        if (fromNode->parent == nullptr) {
+            root = toNode;
+
+        } else if (isRightChild(fromNode)) {
+            fromNode->parent->right = toNode; 
+
+        } else {
+            fromNode->parent->left = toNode;
+        }
+
+        if (toNode != nullptr) {
+            toNode->parent = fromNode->parent;
+        }
+    }
+
+    void deleteFixUp(std::shared_ptr<Node>& node) {
+        while (node != root && node->type == NodeType::BLACK) {
+            if (isLeftChild(node)) {
+                std::shared_ptr<Node> sibling = node->parent->right;
+                if (sibling->type == NodeType::RED) {
+                    sibling->type = NodeType::BLACK;
+                    node->parent->type = NodeType::RED;
+                    leftRotate(node->parent);
+
+                    sibling = node->parent->right;
+                } 
+
+                if (sibling->left->type == NodeType::BLACK && sibling->right->type == NodeType::BLACK) {
+                    sibling->type = NodeType::RED;
+                    node = node->parent;
+
+                } else {
+                    if (sibling->right->type == NodeType::BLACK) {
+                        sibling->type = NodeType::RED;
+                        sibling->left->type = NodeType::BLACK;
+                        rightRotate(sibling);
+                        sibling = node->parent->right; 
+                    }
+                    sibling->type = node->parent->type;
+                    node->parent->type = NodeType::BLACK;
+                    sibling->right->type = NodeType::RED;
+                    leftRotate(node->parent);
+                    node = root;
+                }
+            }
+            if (isRightChild(node)) {
+                std::shared_ptr<Node> sibling = node->parent->left;
+                if (sibling->type == NodeType::RED) {
+                    sibling->type = NodeType::BLACK;
+                    node->parent->type = NodeType::RED;
+                    rightRotate(node->parent);
+
+                    sibling = node->parent->left;
+                } 
+
+                if (sibling->right->type == NodeType::BLACK && sibling->left->type == NodeType::BLACK) {
+                    sibling->type = NodeType::RED;
+                    node = node->parent;
+
+                } else {
+                    if (sibling->left->type == NodeType::BLACK) {
+                        sibling->type = NodeType::RED;
+                        sibling->left->type = NodeType::BLACK;
+                        leftRotate(sibling);
+                        sibling = node->parent->left; 
+                    }
+                    sibling->type = node->parent->type;
+                    node->parent->type = NodeType::BLACK;
+                    sibling->left->type = NodeType::RED;
+                    rightRotate(node->parent);
+                    node = root;
+                }
+            }
+        }
+        node->type = NodeType::BLACK;
+    }
+
+    void removeNode(std::shared_ptr<Node>& node) {
+        if (node == nullptr) {
+            throw std::runtime_error("Node is nullptr");
+        }
+
+        std::shared_ptr<Node> nodeSub;
+        NodeType orignalColor = node->type;
+
+        if (node->right == nullptr) {
+            nodeSub = node->left;
+            transplant(node, nodeSub);
+
+        } else if (node->left == nullptr) {
+            nodeSub = node->right;
+            transplant(node, nodeSub);
+
+        } else {
+            std::shared_ptr<Node> smallestNode = findMinimum(node->right);
+            orignalColor = smallestNode->type;
+            nodeSub = smallestNode->right;
+            if (smallestNode->parent == node) {
+                if (nodeSub != nullptr) {
+                    nodeSub->parent = smallestNode;
+                }
+
+            } else {
+                transplant(smallestNode, nodeSub);
+                smallestNode->right = node->right;
+                smallestNode->right->parent = smallestNode;
+            }
+
+            transplant(node, smallestNode);
+            smallestNode->left = node->left;
+            smallestNode->left->parent = smallestNode; 
+            smallestNode->type = node->type;
+        }
+
+        if (orignalColor == NodeType::BLACK && nodeSub != nullptr) {
+            deleteFixUp(nodeSub);
+        }
+    }
+
+    void deleteFirst(int value) {
+        std::shared_ptr<Node> toDelete = findFirst(value);
+        if (toDelete == nullptr) {
+            throw std::runtime_error("Node does not exsist");
+        }
+        removeNode(toDelete);
+    }
+
+    std::shared_ptr<Node> findMinimum(std::shared_ptr<Node> node) {
+        if (node == nullptr) {
+            throw std::runtime_error("Node is nullptr");
+        }
+
+        while (node->left != nullptr) {
+            node = node->left;
+        }
+
+        return node;
+    }
+
+    std::shared_ptr<Node> findFirst(int value) {
+        std::shared_ptr<Node> current = root;
+        
+        while (current != nullptr) {
+            if (current->value == value) {
+                return current;
+            }
+
+            if (value > current->value){
+                current = current->right;
+
+            } else if (value <= current->value) {
+                current = current->left;
+            }
+
+        }
+
+        return nullptr;
+    }
+
+    void printInOrder(const std::shared_ptr<Node>& current) {
         if (current == nullptr) {
             return;
         }
 
+        printInOrder(current->left);
         std::cout << current->value << "-" << (current->type == NodeType::RED) << ", ";
-        printPreOrder(current->left);
-        printPreOrder(current->right);
+        printInOrder(current->right);
     }
 
     void print() {
         std::cout << "Printing the tree: " << std::endl;
         std::shared_ptr<Node> current = root;
-        printPreOrder(current);
+        printInOrder(current);
         std::cout << std::endl;
     }
 
@@ -228,13 +392,13 @@ private:
 
 int main() {
     RedBlackTree test;
-    test.insert(5);
-    test.insert(1);
-    test.insert(2);
-    test.insert(3);
-    test.insert(7);
+    test.insert(41);
+    test.insert(38);
+    test.insert(31);
+    test.insert(12);
+    test.insert(19);
     test.insert(8);
-    test.insert(1);
-    test.insert(2);
+    test.print();
+    test.deleteFirst(31);
     test.print();
 }
